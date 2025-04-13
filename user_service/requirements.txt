@@ -1,0 +1,6 @@
+Flask
+Flask-SQLAlchemy
+pika
+flask_jwt_extended
+pymysql
+cryptography

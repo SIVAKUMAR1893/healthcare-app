@@ -1,0 +1,93 @@
+version: '3'
+services:
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: Adore1893
+      MYSQL_DATABASE: healthcare
+    ports:
+      - "3309:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      retries: 5
+    networks:
+      - mynetwork
+
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - "15672:15672"  # RabbitMQ management UI
+      - "5672:5672"    # AMQP protocol
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - mynetwork
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  appointment_service:
+    build: ./appointment_service
+    ports:
+      - "6000:6000"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - mynetwork
+
+  user_service:
+    build: ./user_service
+    ports:
+      - "6001:6001"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=Adore1893
+      - DB_NAME=healthcare
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - mynetwork
+
+
+  api_gateway:
+    build: ./api_gateway
+    ports:
+      - "9000:9000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - mynetwork
+
+  frontend_service:
+    build: ./frontend_service
+    ports:
+      - "3000:3000"
+    depends_on:
+      api_gateway:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+networks:
+  mynetwork:
+    driver: bridge
